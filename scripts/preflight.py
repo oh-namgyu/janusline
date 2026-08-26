@@ -18,13 +18,14 @@ from urllib.request import Request, urlopen
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from core.llm import DEFAULT_MODEL  # noqa: E402  (needs the path above)
+
 RSS_PROBE = (
     "https://news.google.com/rss/search"
     "?q=test&hl=en-US&gl=US&ceid=US:en"
 )
 USER_AGENT = "janusline-preflight/1.0"
 TIMEOUT = 15
-DEFAULT_MODEL = "claude-sonnet-5"
 
 
 def check_rss() -> Tuple[bool, str]:

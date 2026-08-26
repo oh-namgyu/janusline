@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import ipaddress
 import os
-import sys
 from pathlib import Path
 from typing import Optional
 
 from flask import Flask, Response, send_from_directory
 
+from core import auth
 from core.api import api_bp, register_errors
 from core.collect import GoogleNewsCollector
 from core.llm import AnthropicText
@@ -58,6 +57,7 @@ def create_app(
     data_dir: Optional[str | os.PathLike[str]] = None,
     collector: Optional[object] = None,
     llm: Optional[object] = None,
+    token: Optional[str] = None,
 ) -> Flask:
     app = Flask(__name__, static_folder=str(STATIC_DIR), static_url_path="/static")
     storage = Storage(resolve_data_dir(data_dir))
@@ -69,6 +69,7 @@ def create_app(
     app.config["LLM"] = llm if llm is not None else default_llm()
     app.register_blueprint(api_bp)
     register_errors(app)
+    auth.install(app, token if token is not None else os.environ.get("AUTH_TOKEN"))
 
     @app.get("/")
     def index() -> Response:
@@ -84,26 +85,10 @@ def create_app(
     return app
 
 
-def is_loopback(host: str) -> bool:
-    try:
-        return ipaddress.ip_address(host).is_loopback
-    except ValueError:
-        return host in ("localhost", "")
-
-
-def warn_plaintext(host: str) -> None:
-    """A non-loopback bind speaks plain HTTP; say so before anyone trusts it."""
-    if not is_loopback(host):
-        print(
-            f"[warn] binding {host}: traffic is plain HTTP — put a TLS proxy in front",
-            file=sys.stderr,
-        )
-
-
 def main() -> None:
     host = os.environ.get("HOST", DEFAULT_HOST)
     port = int(os.environ.get("PORT", DEFAULT_PORT))
-    warn_plaintext(host)
+    auth.check_bind(host, os.environ.get("AUTH_TOKEN"))
     create_app().run(host=host, port=port, threaded=True)
 
 

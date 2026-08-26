@@ -53,6 +53,8 @@ body {
   padding: 24px;
 }
 
+.wrap-narrow { max-width: 460px; }
+
 .panel {
   background: var(--paper);
   border: 1px solid var(--line);
