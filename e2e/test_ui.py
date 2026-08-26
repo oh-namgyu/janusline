@@ -182,3 +182,45 @@ def test_narrow_viewport_stacks_and_names_the_polarity(page: Page, server: str, 
     negative = page.locator("#synth-negative").bounding_box()
     assert negative["y"] > positive["y"]
     assert abs(positive["x"] - negative["x"]) < 1
+
+
+def test_export_is_a_standalone_document(page: Page, server: str, analysed: str, tmp_path) -> None:
+    response = page.request.get(f"{server}/api/briefs/{analysed}/export")
+    assert response.status == 200
+    disposition = response.headers["content-disposition"]
+    assert f'attachment; filename="{analysed}-janusline.html"' == disposition
+
+    document = response.text()
+    assert "Auric Foundry" in document
+    assert "<script" not in document
+    assert "Favourable reading" in document and "Unfavourable reading" in document
+    assert "IF this narrative holds" in document
+    assert "Machine-generated" in document
+    assert POSITIVE_TITLE in document and NEGATIVE_TITLE in document
+    # the hostile fixture headline is escaped, not neutralised by removal
+    assert "&lt;script&gt;alert(&#x27;xss&#x27;)" in document
+
+    # it has to stand on its own: no origin, no network, no scripts
+    saved = tmp_path / "export.html"
+    saved.write_text(document, encoding="utf-8")
+    requests: list = []
+    page.on("request", lambda request: requests.append(request.url))
+    page.goto(saved.as_uri())
+    expect(page.locator("h1")).to_have_text("Auric Foundry")
+    expect(page.locator(".card.pos", has_text=POSITIVE_TITLE)).to_have_count(1)
+    expect(page.locator(".card.neg", has_text=NEGATIVE_TITLE)).to_have_count(1)
+    expect(page.locator(".card.mid", has_text=NEUTRAL_TITLE)).to_have_count(1)
+    expect(page.locator("ol.refs li")).not_to_have_count(0)
+    assert requests == [saved.as_uri()]
+
+
+def test_export_button_is_offered_once_there_is_something_to_export(
+    page: Page, server: str, analysed: str
+) -> None:
+    open_brief(page, server, analysed)
+    expect(page.locator("#bv-export")).to_be_enabled()
+    # the endpoint answers with an attachment, so the tab the button opens turns
+    # into a download rather than a page — the request is what can be observed
+    with page.context.expect_event("request", lambda r: "/export" in r.url) as sent:
+        page.click("#bv-export")
+    assert sent.value.url.endswith(f"/api/briefs/{analysed}/export")

@@ -9,6 +9,7 @@ from flask import Blueprint, Response, current_app, jsonify, request
 
 from .analyze import AnalysisParseError, analyse, apply_analysis
 from .collect import CollectError
+from .export import export_filename, render_export
 from .llm import LLMError, LLMNotConfigured
 from .schema import DEFAULT_PERIOD_DAYS, VALID_LANG, BriefNotFound, StorageError
 from .storage import Storage
@@ -126,6 +127,21 @@ def analyze(slug: str) -> Tuple[Response, int]:
             return fail("invalid-llm-output", 502, raw_preview=err.raw[:RAW_PREVIEW])
         apply = partial(apply_analysis, result=result)
         return ok(store().mutate_brief(slug, apply))
+
+
+@api_bp.get("/briefs/<slug>/export")
+def export(slug: str) -> Response:
+    """The brief as one standalone HTML file — no scripts, no external refs.
+
+    The app's own CSP does not reach this: it is a downloaded document, not a
+    page this origin serves to itself, so a single inline <style> is the right
+    shape for something that has to open from file:// and print.
+    """
+    document = render_export(store().load_brief(slug))
+    response = current_app.response_class(document, mimetype="text/html")
+    filename = export_filename(slug)
+    response.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
 
 
 @api_bp.delete("/briefs/<slug>")
