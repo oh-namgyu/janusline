@@ -1,0 +1,16 @@
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+test-results/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+data/
+# env files (keep only the template)
+.env*
+!.env.example
+.DS_Store

@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>janusline</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1 class="brand"><a class="brand-link" href="#/">janus<span class="brand-em">line</span></a></h1>
+    <p class="tagline">two sides of one search, on one timeline</p>
+  </header>
+
+  <main class="wrap">
+    <div class="notice hidden" id="notice"></div>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2 class="panel-title">New Brief</h2>
+        <span class="hint">One query in, both narratives out.</span>
+      </div>
+      <form id="new-brief-form">
+        <label class="label" for="f-query">Search query</label>
+        <input class="input input-hero" id="f-query" maxlength="200" required
+               placeholder="a company, a person, an issue">
+        <div class="form-row">
+          <div class="field">
+            <label class="label" for="f-period">Period</label>
+            <select class="input" id="f-period">
+              <option value="30">last 30 days</option>
+              <option value="90" selected>last 90 days</option>
+              <option value="365">last 365 days</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="label" for="f-lang">Editions</label>
+            <select class="input" id="f-lang">
+              <option value="ko,en" selected>Korean + English</option>
+              <option value="ko">Korean</option>
+              <option value="en">English</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-primary" type="submit" id="f-submit">Create Brief</button>
+          <span class="form-note" id="form-note"></span>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2 class="panel-title">Briefs</h2>
+        <span class="badge" id="brief-count">0</span>
+      </div>
+      <div class="grid" id="brief-grid"></div>
+      <p class="empty" id="brief-empty">No briefs yet — start with a query.</p>
+    </section>
+
+    <p class="caveat">
+      janusline is a research aid, not a fact checker. Sentiment, summaries and
+      scenarios are machine generated from headlines — always open the source.
+    </p>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
