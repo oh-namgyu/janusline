@@ -11,6 +11,7 @@ from typing import Optional
 from flask import Flask, Response, send_from_directory
 
 from core.api import api_bp, register_errors
+from core.collect import GoogleNewsCollector
 from core.storage import Storage
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -29,13 +30,31 @@ def resolve_data_dir(data_dir: Optional[str | os.PathLike[str]] = None) -> Path:
     return BASE_DIR / "data"
 
 
+def default_collector() -> object:
+    """Collector for a normally started app.
+
+    JANUSLINE_FAKE=1 swaps in the offline fixture collector used by demos and
+    browser tests: no network, no key. The real one is the default everywhere
+    else, so the flag has to be set deliberately.
+    """
+    if os.environ.get("JANUSLINE_FAKE") == "1":
+        from core.fake_collect import FakeCollector
+
+        return FakeCollector()
+    return GoogleNewsCollector()
+
+
 def create_app(
     data_dir: Optional[str | os.PathLike[str]] = None,
+    collector: Optional[object] = None,
 ) -> Flask:
     app = Flask(__name__, static_folder=str(STATIC_DIR), static_url_path="/static")
     storage = Storage(resolve_data_dir(data_dir))
     storage.purge_trash(days=int(os.environ.get("JANUSLINE_TRASH_DAYS", "7")))
     app.config["STORAGE"] = storage
+    app.config["COLLECTOR"] = (
+        collector if collector is not None else default_collector()
+    )
     app.register_blueprint(api_bp)
     register_errors(app)
 

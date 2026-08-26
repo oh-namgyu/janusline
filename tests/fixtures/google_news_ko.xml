@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:media="http://search.yahoo.com/mrss/" version="2.0">
+<channel>
+<generator>NFE/5.0</generator>
+<title>"samsung electronics" - Google 뉴스</title>
+<link>https://news.google.com/search?q=samsung+electronics&amp;hl=ko&amp;gl=KR&amp;ceid=KR:ko</link>
+<language>ko</language>
+<webMaster>news-webmaster@google.com</webMaster>
+<copyright>2026 Google Inc.</copyright>
+<lastBuildDate>Thu, 20 Aug 2026 12:00:00 GMT</lastBuildDate>
+<description>Google 뉴스</description>
+<item>
+<title>반도체 수출 3분기 연속 증가 - 연합뉴스</title>
+<link>https://news.example.com/ko/exports-up?utm_source=google&amp;oc=5</link>
+<guid isPermaLink="false">CBMiK2h0dHBzOi8vZXhwb3J0cw</guid>
+<pubDate>Tue, 18 Aug 2026 09:12:00 GMT</pubDate>
+<description>&lt;a href="https://news.example.com/ko/exports-up" target="_blank"&gt;반도체 수출 3분기 연속 증가&lt;/a&gt;&amp;nbsp;&amp;nbsp;&lt;font color="#6f6f6f"&gt;연합뉴스&lt;/font&gt;</description>
+<source url="https://www.yna.co.kr">연합뉴스</source>
+</item>
+<item>
+<title>Factory fire halts production - Korea Herald</title>
+<link>https://news.example.com/ko/factory-fire</link>
+<guid isPermaLink="false">CBMiK2h0dHBzOi8vZmlyZQ</guid>
+<pubDate>Sat, 15 Aug 2026 22:40:00 GMT</pubDate>
+<description>&lt;a href="https://news.example.com/ko/factory-fire"&gt;Factory fire halts production&lt;/a&gt;&amp;nbsp;&amp;nbsp;&lt;font color="#6f6f6f"&gt;Korea Herald&lt;/font&gt;</description>
+<source url="https://www.koreaherald.com">Korea Herald</source>
+</item>
+<item>
+<title>&lt;script&gt;alert('xss')&lt;/script&gt; 주가 급등 - 머니투데이</title>
+<link>https://news.example.com/ko/hostile-headline</link>
+<guid isPermaLink="false">CBMiK2h0dHBzOi8vaG9zdGlsZQ</guid>
+<pubDate>Thu, 13 Aug 2026 01:05:00 GMT</pubDate>
+<description>&lt;a href="https://news.example.com/ko/hostile-headline"&gt;제목에 스크립트가 섞인 기사&lt;/a&gt;</description>
+<source url="https://news.mt.co.kr">머니투데이</source>
+</item>
+<item>
+<title>법원, 하청 소송 심리 시작 - 뉴시스</title>
+<link>javascript:alert(1)</link>
+<guid isPermaLink="false">CBMiK2h0dHBzOi8vc2NoZW1l</guid>
+<pubDate>Wed, 12 Aug 2026 08:00:00 GMT</pubDate>
+<description>&lt;a href="javascript:alert(1)"&gt;스킴이 잘못된 링크&lt;/a&gt;</description>
+<source url="https://newsis.com">뉴시스</source>
+</item>
+<item>
+<title>날짜 없는 속보 - 뉴스1</title>
+<link>https://news.example.com/ko/no-date</link>
+<guid isPermaLink="false">CBMiK2h0dHBzOi8vbm9kYXRl</guid>
+<description>&lt;a href="https://news.example.com/ko/no-date"&gt;pubDate 가 없는 기사&lt;/a&gt;</description>
+<source url="https://www.news1.kr">뉴스1</source>
+</item>
+<item>
+<title>2년 전 기획 기사 - 한국경제</title>
+<link>https://news.example.com/ko/ancient</link>
+<guid isPermaLink="false">CBMiK2h0dHBzOi8vYW5jaWVudA</guid>
+<pubDate>Sat, 01 Mar 2025 00:00:00 GMT</pubDate>
+<description>&lt;a href="https://news.example.com/ko/ancient"&gt;기간 필터 바깥의 기사&lt;/a&gt;</description>
+<source url="https://www.hankyung.com">한국경제</source>
+</item>
+</channel>
+</rss>

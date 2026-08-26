@@ -90,6 +90,9 @@ function briefCard(brief) {
   }
   const actions = el("div", "card-actions");
   actions.appendChild(
+    button("Collect", "btn", (event) => collectBrief(brief.slug, event.target))
+  );
+  actions.appendChild(
     button("Delete", "btn btn-danger", () => removeBrief(brief.slug))
   );
   card.appendChild(actions);
@@ -109,6 +112,18 @@ async function refresh() {
   briefs.forEach((brief) => grid.appendChild(briefCard(brief)));
   countBadge.textContent = String(briefs.length);
   emptyNote.classList.toggle("hidden", briefs.length > 0);
+}
+
+async function collectBrief(slug, trigger) {
+  if (trigger) trigger.disabled = true;
+  try {
+    await request("POST", "/api/briefs/" + slug + "/collect");
+    notify("");
+  } catch (err) {
+    notify(err.message);
+  }
+  if (trigger) trigger.disabled = false;
+  await refresh();
 }
 
 async function removeBrief(slug) {
