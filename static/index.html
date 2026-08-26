@@ -8,63 +8,90 @@
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <header class="topbar">
-    <h1 class="brand"><a class="brand-link" href="#/">janus<span class="brand-em">line</span></a></h1>
-    <p class="tagline">two sides of one search, on one timeline</p>
+  <header class="masthead">
+    <div class="masthead-inner">
+      <h1 class="brand"><a class="brand-link" href="#/">janus<span class="brand-em">line</span></a></h1>
+      <p class="tagline">both sides of the story</p>
+    </div>
+    <div class="masthead-rule" aria-hidden="true"><span class="rule-pos"></span><span class="rule-neg"></span></div>
   </header>
 
   <main class="wrap">
     <div class="notice hidden" id="notice"></div>
 
-    <section class="panel">
-      <div class="panel-head">
-        <h2 class="panel-title">New Brief</h2>
-        <span class="hint">One query in, both narratives out.</span>
-      </div>
-      <form id="new-brief-form">
-        <label class="label" for="f-query">Search query</label>
-        <input class="input input-hero" id="f-query" maxlength="200" required
-               placeholder="a company, a person, an issue">
-        <div class="form-row">
-          <div class="field">
-            <label class="label" for="f-period">Period</label>
-            <select class="input" id="f-period">
-              <option value="30">last 30 days</option>
-              <option value="90" selected>last 90 days</option>
-              <option value="365">last 365 days</option>
-            </select>
-          </div>
-          <div class="field">
-            <label class="label" for="f-lang">Editions</label>
-            <select class="input" id="f-lang">
-              <option value="ko,en" selected>Korean + English</option>
-              <option value="ko">Korean</option>
-              <option value="en">English</option>
-            </select>
-          </div>
+    <div id="view-home">
+      <section class="panel panel-search">
+        <div class="panel-head">
+          <h2 class="panel-title">New brief</h2>
+          <span class="kicker">one query, two readings</span>
         </div>
-        <div class="form-actions">
-          <button class="btn btn-primary" type="submit" id="f-submit">Create Brief</button>
-          <span class="form-note" id="form-note"></span>
+        <form id="new-brief-form">
+          <label class="label" for="f-query">Search query</label>
+          <input class="input input-hero" id="f-query" maxlength="200" required
+                 autocomplete="off" placeholder="a company, a person, an issue">
+          <p class="helper">A name is enough. The feeds are searched in the editions you pick below.</p>
+          <div class="form-row">
+            <div class="field">
+              <label class="label" for="f-period">Period</label>
+              <select class="input" id="f-period">
+                <option value="30">last 30 days</option>
+                <option value="90" selected>last 90 days</option>
+                <option value="365">last 365 days</option>
+              </select>
+            </div>
+            <div class="field">
+              <span class="label" id="lang-label">Editions</span>
+              <div class="toggles" role="group" aria-labelledby="lang-label">
+                <label class="toggle" for="f-ko"><input type="checkbox" id="f-ko" checked> 한국어 ko</label>
+                <label class="toggle" for="f-en"><input type="checkbox" id="f-en" checked> English en</label>
+              </div>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn btn-primary" type="submit" id="f-submit">Create brief</button>
+            <span class="form-note" id="form-note"></span>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2 class="panel-title">Briefs</h2>
+          <span class="badge" id="brief-count">0</span>
         </div>
-      </form>
-    </section>
+        <div class="grid" id="brief-grid"></div>
+        <p class="empty" id="brief-empty">No briefs yet — start with a query.</p>
+      </section>
+    </div>
 
-    <section class="panel">
-      <div class="panel-head">
-        <h2 class="panel-title">Briefs</h2>
-        <span class="badge" id="brief-count">0</span>
+    <div class="hidden" id="view-brief">
+      <div class="actionbar">
+        <a class="btn btn-small" href="#/" id="bv-back">&larr; Briefs</a>
+        <h2 class="bv-title" id="bv-query"></h2>
+        <span class="pill pill-empty" id="bv-status">empty</span>
+        <span class="spacer"></span>
+        <button class="btn btn-small" type="button" id="bv-collect">Collect</button>
+        <button class="btn btn-small btn-primary" type="button" id="bv-analyze">Analyze</button>
       </div>
-      <div class="grid" id="brief-grid"></div>
-      <p class="empty" id="brief-empty">No briefs yet — start with a query.</p>
-    </section>
 
-    <p class="caveat">
+      <section class="panel panel-summary">
+        <div class="summary-row">
+          <p class="bv-meta" id="bv-meta"></p>
+          <span class="spacer"></span>
+          <p class="form-note" id="bv-cost">Analysis &asymp;3 LLM calls per brief (your API credits)</p>
+        </div>
+        <div class="gauge" id="bv-gauge"></div>
+      </section>
+
+    </div>
+
+    <p class="caveat caveat-foot">
       janusline is a research aid, not a fact checker. Sentiment, summaries and
       scenarios are machine generated from headlines — always open the source.
     </p>
   </main>
 
   <script src="/static/app.js"></script>
+  <script src="/static/brief.js"></script>
 </body>
 </html>

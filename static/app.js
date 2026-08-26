@@ -1,19 +1,29 @@
 "use strict";
 
-/* Shell: create a brief, list the saved ones. The dual timeline view lands in a
-   later stage. Every string that comes from the server is injected with
-   textContent only — article titles are untrusted third-party text. */
+/* Shell: shared helpers, hash router, home view.
+   The brief view lives in brief.js and timeline.js, both of which attach
+   themselves to window.JL. Every string that comes from the server — article
+   titles, feed snippets, model prose — is injected with textContent only. */
 
 const JL = (window.JL = {});
 
+const BRIEF_ROUTE = /^#\/brief\/([a-z0-9-]{1,64})$/;
+const STATUS_RE = /^(empty|collected|analyzed)$/;
+const NO_KEY_MESSAGE =
+  "Browse-only: set ANTHROPIC_API_KEY on the server to enable analysis. " +
+  "The brief and its articles stay readable without a key.";
+const SENTIMENTS = ["positive", "neutral", "negative"];
+const SENTIMENT_CLASS = { positive: "pos", neutral: "neu", negative: "neg" };
+
 const noticeBar = document.getElementById("notice");
+const views = {
+  home: document.getElementById("view-home"),
+  brief: document.getElementById("view-brief"),
+};
 const grid = document.getElementById("brief-grid");
 const emptyNote = document.getElementById("brief-empty");
 const countBadge = document.getElementById("brief-count");
 const form = document.getElementById("new-brief-form");
-const queryInput = document.getElementById("f-query");
-const periodInput = document.getElementById("f-period");
-const langInput = document.getElementById("f-lang");
 const submitBtn = document.getElementById("f-submit");
 const formNote = document.getElementById("form-note");
 
@@ -47,117 +57,231 @@ function button(label, className, onClick) {
   return node;
 }
 
-function notify(message) {
-  noticeBar.textContent = message || "";
-  noticeBar.classList.toggle("hidden", !message);
+/* Article links are third-party URLs: they open away from the app, in a tab
+   that cannot reach back into this one. */
+function externalLink(text, href) {
+  const node = el("a", "link", text);
+  node.href = href || "#";
+  node.target = "_blank";
+  node.rel = "noopener noreferrer";
+  return node;
 }
 
-/* Share of positive / neutral / negative as one bar. Widths are percentages of
-   the classified articles, so an unanalysed brief shows an empty rail. */
-function ratioBar(counts) {
+/* status drives a colour, so it is whitelisted before it reaches a class name */
+function statusClass(status) {
+  const value = String(status || "empty");
+  return "pill pill-" + (STATUS_RE.test(value) ? value : "empty");
+}
+
+function statusPill(status) {
+  return el("span", statusClass(status), String(status || "empty"));
+}
+
+function clearNotice() {
+  noticeBar.replaceChildren();
+  noticeBar.className = "notice hidden";
+}
+
+function showNotice(message, variant, actionLabel, action) {
+  noticeBar.replaceChildren();
+  noticeBar.className = "notice notice-" + (variant || "info");
+  noticeBar.appendChild(el("span", "notice-text", message));
+  if (actionLabel) noticeBar.appendChild(button(actionLabel, "btn btn-small", action));
+  noticeBar.appendChild(button("Dismiss", "btn btn-small", clearNotice));
+}
+
+function counts(source) {
+  const values = source || {};
+  const tally = { total: 0 };
+  SENTIMENTS.forEach((name) => {
+    tally[name] = Number(values[name]) || 0;
+    tally.total += tally[name];
+  });
+  return tally;
+}
+
+/* Positive, neutral and negative as one bar. Widths are shares of the
+   classified articles — the only computed style in the app — so a brief that
+   has not been analysed yet shows a dashed, empty rail instead of a lie. */
+function ratioBar(source) {
   const bar = el("div", "ratio-bar");
-  const total =
-    (counts.positive || 0) + (counts.negative || 0) + (counts.neutral || 0);
-  if (!total) return bar;
-  [
-    ["ratio-pos", counts.positive || 0],
-    ["ratio-neutral", counts.neutral || 0],
-    ["ratio-neg", counts.negative || 0],
-  ].forEach(([className, value]) => {
-    const part = el("span", className);
-    part.style.width = (value / total) * 100 + "%";
+  const tally = counts(source);
+  if (!tally.total) {
+    bar.appendChild(el("span", "ratio-empty"));
+    return bar;
+  }
+  SENTIMENTS.forEach((name) => {
+    if (!tally[name]) return;
+    const part = el("span", "ratio-" + SENTIMENT_CLASS[name]);
+    part.style.width = (tally[name] / tally.total) * 100 + "%";
     bar.appendChild(part);
   });
   return bar;
 }
 
+function shortDate(iso) {
+  const value = String(iso || "");
+  return value.length >= 10 ? value.slice(0, 10) : value;
+}
+
+Object.assign(JL, {
+  NO_KEY_MESSAGE: NO_KEY_MESSAGE,
+  SENTIMENTS: SENTIMENTS,
+  SENTIMENT_CLASS: SENTIMENT_CLASS,
+  request: request,
+  el: el,
+  button: button,
+  externalLink: externalLink,
+  statusClass: statusClass,
+  statusPill: statusPill,
+  showNotice: showNotice,
+  clearNotice: clearNotice,
+  counts: counts,
+  ratioBar: ratioBar,
+  shortDate: shortDate,
+});
+
+// -- home ------------------------------------------------------------------
+function askDelete(card, actions, slug) {
+  actions.classList.add("hidden");
+  const bar = el("div", "confirm-bar");
+  const restore = () => {
+    bar.remove();
+    actions.classList.remove("hidden");
+  };
+  bar.appendChild(el("span", "confirm-text", "Delete this brief?"));
+  bar.appendChild(
+    button("Delete", "btn btn-small btn-danger", async () => {
+      try {
+        await request("DELETE", "/api/briefs/" + slug);
+        await loadBriefs();
+      } catch (err) {
+        restore();
+        showNotice("Delete failed: " + err.message, "error");
+      }
+    })
+  );
+  bar.appendChild(button("Cancel", "btn btn-small", restore));
+  card.appendChild(bar);
+}
+
 function briefCard(brief) {
   const card = el("article", "card");
-  card.appendChild(el("h3", "card-title", brief.query));
+  card.dataset.slug = brief.slug;
+  const body = el("div", "card-body");
+  const title = el("h3", "card-title");
+  const link = el("a", "link", brief.query || brief.slug);
+  link.href = "#/brief/" + brief.slug;
+  title.appendChild(link);
+  body.appendChild(title);
+  body.appendChild(ratioBar(brief.sentiment_counts));
   const meta = el("div", "card-meta");
-  meta.appendChild(
-    el("span", null, brief.article_count + " articles · " + brief.period_days + "d · ")
-  );
-  meta.appendChild(el("span", "pill", brief.status));
-  card.appendChild(meta);
-  card.appendChild(ratioBar(brief.sentiment_counts || {}));
-  if (brief.data_loss) {
-    card.appendChild(
-      el("p", "card-meta", "recovered after a damaged file — contents were lost")
-    );
-  } else if (brief.recovered) {
-    card.appendChild(el("p", "card-meta", "restored from backup"));
-  }
+  meta.appendChild(el("span", null, (brief.article_count || 0) + " articles"));
+  meta.appendChild(el("span", null, brief.period_days + "d"));
+  meta.appendChild(statusPill(brief.status));
+  body.appendChild(meta);
+  const stamp = el("div", "card-meta");
+  stamp.appendChild(el("span", null, "created " + shortDate(brief.created)));
+  if (brief.data_loss) stamp.appendChild(el("span", "badge badge-warn", "contents lost"));
+  else if (brief.recovered) stamp.appendChild(el("span", "badge badge-warn", "restored"));
+  body.appendChild(stamp);
+  card.appendChild(body);
   const actions = el("div", "card-actions");
   actions.appendChild(
-    button("Collect", "btn", (event) => collectBrief(brief.slug, event.target))
+    button("Open", "btn btn-small", () => {
+      location.hash = "#/brief/" + brief.slug;
+    })
   );
   actions.appendChild(
-    button("Delete", "btn btn-danger", () => removeBrief(brief.slug))
+    button("Delete", "btn btn-small btn-danger", () => askDelete(card, actions, brief.slug))
   );
   card.appendChild(actions);
   return card;
 }
 
-async function refresh() {
-  let briefs = [];
-  try {
-    briefs = await request("GET", "/api/briefs");
-    notify("");
-  } catch (err) {
-    notify(err.message);
-    return;
-  }
+function renderBriefs(briefs) {
   grid.replaceChildren();
-  briefs.forEach((brief) => grid.appendChild(briefCard(brief)));
   countBadge.textContent = String(briefs.length);
   emptyNote.classList.toggle("hidden", briefs.length > 0);
+  briefs.forEach((brief) => grid.appendChild(briefCard(brief)));
 }
 
-async function collectBrief(slug, trigger) {
-  if (trigger) trigger.disabled = true;
+async function loadBriefs() {
+  try {
+    renderBriefs(await request("GET", "/api/briefs"));
+  } catch (err) {
+    grid.replaceChildren();
+    emptyNote.classList.remove("hidden");
+    emptyNote.textContent = "Could not load briefs: " + err.message;
+  }
+}
+
+function setBusy(busy, label) {
+  submitBtn.disabled = busy;
+  formNote.textContent = busy ? label : "";
+}
+
+function chosenLangs() {
+  return ["ko", "en"].filter((code) => document.getElementById("f-" + code).checked);
+}
+
+/* Collection is a second call after creation: a feed that is down leaves the
+   saved brief in place, so the user lands on it and retries without retyping. */
+async function collectThenOpen(slug) {
+  setBusy(true, "Collecting…");
   try {
     await request("POST", "/api/briefs/" + slug + "/collect");
-    notify("");
+    clearNotice();
   } catch (err) {
-    notify(err.message);
+    showNotice("Collection failed: " + err.message, "error");
+  } finally {
+    setBusy(false);
+    location.hash = "#/brief/" + slug;
   }
-  if (trigger) trigger.disabled = false;
-  await refresh();
-}
-
-async function removeBrief(slug) {
-  try {
-    await request("DELETE", "/api/briefs/" + slug);
-  } catch (err) {
-    notify(err.message);
-  }
-  await refresh();
 }
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const query = queryInput.value.trim();
-  if (!query) return;
-  submitBtn.disabled = true;
-  formNote.textContent = "creating…";
-  try {
-    await request("POST", "/api/briefs", {
-      query: query,
-      period_days: Number(periodInput.value),
-      lang: langInput.value.split(","),
-    });
-    queryInput.value = "";
-    formNote.textContent = "";
-    notify("");
-  } catch (err) {
-    formNote.textContent = "";
-    notify(err.message);
+  const lang = chosenLangs();
+  if (!lang.length) {
+    showNotice("Pick at least one edition to search.", "warn");
+    return;
   }
-  submitBtn.disabled = false;
-  await refresh();
+  const payload = {
+    query: document.getElementById("f-query").value,
+    period_days: Number(document.getElementById("f-period").value),
+    lang: lang,
+  };
+  setBusy(true, "Creating…");
+  let created;
+  try {
+    created = await request("POST", "/api/briefs", payload);
+    document.getElementById("f-query").value = "";
+  } catch (err) {
+    showNotice("Could not create the brief: " + err.message, "error");
+    setBusy(false);
+    return;
+  }
+  await collectThenOpen(created.slug);
 });
 
-JL.request = request;
-JL.refresh = refresh;
-refresh();
+// -- routing ---------------------------------------------------------------
+function showView(name) {
+  Object.keys(views).forEach((key) => views[key].classList.toggle("hidden", key !== name));
+}
+
+function route() {
+  const match = BRIEF_ROUTE.exec(location.hash || "#/");
+  if (match) {
+    showView("brief");
+    JL.openBrief(match[1]);
+    return;
+  }
+  showView("home");
+  loadBriefs();
+}
+
+JL.loadBriefs = loadBriefs;
+window.addEventListener("hashchange", route);
+// fires after brief.js has registered JL.openBrief (all three scripts are classic)
+window.addEventListener("DOMContentLoaded", route);
