@@ -12,6 +12,7 @@ from flask import Flask, Response, send_from_directory
 
 from core.api import api_bp, register_errors
 from core.collect import GoogleNewsCollector
+from core.llm import AnthropicText
 from core.storage import Storage
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -44,9 +45,19 @@ def default_collector() -> object:
     return GoogleNewsCollector()
 
 
+def default_llm() -> object:
+    """Analyst for a normally started app; the same flag swaps in the offline fake."""
+    if os.environ.get("JANUSLINE_FAKE") == "1":
+        from core.fake_llm import FakeText
+
+        return FakeText()
+    return AnthropicText()
+
+
 def create_app(
     data_dir: Optional[str | os.PathLike[str]] = None,
     collector: Optional[object] = None,
+    llm: Optional[object] = None,
 ) -> Flask:
     app = Flask(__name__, static_folder=str(STATIC_DIR), static_url_path="/static")
     storage = Storage(resolve_data_dir(data_dir))
@@ -55,6 +66,7 @@ def create_app(
     app.config["COLLECTOR"] = (
         collector if collector is not None else default_collector()
     )
+    app.config["LLM"] = llm if llm is not None else default_llm()
     app.register_blueprint(api_bp)
     register_errors(app)
 

@@ -6,11 +6,15 @@ from typing import Any, Dict, Tuple
 
 from flask import Blueprint, Response, current_app, jsonify, request
 
+from .analyze import AnalysisParseError, analyse, apply_analysis
 from .collect import CollectError
+from .llm import LLMError, LLMNotConfigured
 from .schema import DEFAULT_PERIOD_DAYS, VALID_LANG, BriefNotFound, StorageError
 from .storage import Storage
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
+RAW_PREVIEW = 500
+ANALYSABLE = ("collected", "analyzed")
 
 
 def ok(data: Any, status: int = 200) -> Tuple[Response, int]:
@@ -29,6 +33,10 @@ def store() -> Storage:
 
 def collector() -> Any:
     return current_app.config["COLLECTOR"]
+
+
+def llm() -> Any:
+    return current_app.config["LLM"]
 
 
 def _payload() -> Dict[str, Any]:
@@ -85,6 +93,32 @@ def collect(slug: str) -> Tuple[Response, int]:
         current["status"] = "collected"
 
     return ok(store().mutate_brief(slug, change))
+
+
+@api_bp.post("/briefs/<slug>/analyze")
+def analyze(slug: str) -> Tuple[Response, int]:
+    """Classify the collected articles and write both readings.
+
+    Every provider call happens before the store is touched, and the result is
+    folded in by one atomic write — so any failure here, at any stage, leaves
+    brief.json byte for byte as it was. Re-analysing an analysed brief keeps the
+    articles and replaces only the judgements and the synthesis.
+    """
+    brief = store().load_brief(slug)
+    if brief.get("status") not in ANALYSABLE:
+        return fail("brief has no collected articles", 409)
+    articles = brief.get("articles") or []
+    if not articles:
+        return fail("brief has no articles to analyse", 409)
+    try:
+        result = analyse(brief.get("query") or "", articles, llm())
+    except LLMNotConfigured:
+        return fail("llm-not-configured", 503)
+    except LLMError as err:
+        return fail(str(err) or "llm-error", 502, retryable=err.retryable)
+    except AnalysisParseError as err:
+        return fail("invalid-llm-output", 502, raw_preview=err.raw[:RAW_PREVIEW])
+    return ok(store().mutate_brief(slug, lambda brief: apply_analysis(brief, result)))
 
 
 @api_bp.delete("/briefs/<slug>")

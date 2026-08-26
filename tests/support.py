@@ -1,13 +1,15 @@
-"""Shared collection helpers: saved feeds, fixed clock, stub collectors."""
+"""Shared test helpers: saved feeds, fixed clock, stub collectors, stub analysts."""
 
 from __future__ import annotations
 
 import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import List
+from typing import Any, Dict, List, Sequence
 
 from core.collect import MAX_PER_EDITION, CollectError, GoogleNewsCollector, parse_edition
+from core.fake_llm import FakeText
+from core.llm import LLMError, LLMNotConfigured
 
 FIXTURES = Path(__file__).parent / "fixtures"
 # the saved feeds carry fixed dates, so the clock is fixed too
@@ -58,6 +60,108 @@ class BrokenCollector(GoogleNewsCollector):
 class BigCollector(GoogleNewsCollector):
     def fetch(self, url: str) -> bytes:
         return big_feed("ko" if "hl=ko" in url else "en", 25)
+
+
+# -- analysts ---------------------------------------------------------------
+class ScriptedLLM:
+    """Replies from a fixed queue; records every (system, user) pair it was given."""
+
+    def __init__(self, *replies: Any) -> None:
+        self.replies = list(replies)
+        self.calls: List[tuple] = []
+
+    def generate(self, system: str, user: str) -> str:
+        self.calls.append((system, user))
+        assert self.replies, "the analyst was called more often than scripted"
+        reply = self.replies.pop(0)
+        return reply if isinstance(reply, str) else json.dumps(reply, ensure_ascii=False)
+
+
+class CountingLLM:
+    """The offline fake, plus a record of every call made through it."""
+
+    def __init__(self, inner: Any = None) -> None:
+        self.inner = inner or FakeText()
+        self.calls: List[tuple] = []
+
+    def generate(self, system: str, user: str) -> str:
+        self.calls.append((system, user))
+        return self.inner.generate(system, user)
+
+
+class BrokenLLM:
+    def __init__(self, retryable: bool = True) -> None:
+        self.retryable = retryable
+
+    def generate(self, system: str, user: str) -> str:
+        raise LLMError("RateLimitError: slow down", retryable=self.retryable)
+
+
+class UnconfiguredLLM:
+    def generate(self, system: str, user: str) -> str:
+        raise LLMNotConfigured("ANTHROPIC_API_KEY is not set")
+
+
+class GarbageLLM:
+    """Never returns JSON, so both attempts fail and the parse error surfaces."""
+
+    def __init__(self, reply: str = "sorry, I cannot do that") -> None:
+        self.reply = reply
+        self.calls: List[tuple] = []
+
+    def generate(self, system: str, user: str) -> str:
+        self.calls.append((system, user))
+        return self.reply
+
+
+# -- analysis fixtures ------------------------------------------------------
+def make_articles(count: int, prefix: str = "Headline") -> List[Dict[str, Any]]:
+    return [
+        {
+            "id": f"id{index}",
+            "title": f"{prefix} {index}",
+            "source": "Example News",
+            "link": f"https://news.example.com/{index}",
+            "published": NOW_ISO,
+            "snippet": f"Body text for {prefix.lower()} {index}.",
+            "sentiment": None,
+            "summary": None,
+            "evidence": None,
+        }
+        for index in range(count)
+    ]
+
+
+def classification_reply(
+    articles: Sequence[Dict[str, Any]], sentiment: str = "positive", grounded: bool = True
+) -> List[Dict[str, Any]]:
+    return [
+        {
+            "id": article["id"],
+            "sentiment": sentiment,
+            "summary": f"Summary of {article['title']}.",
+            "evidence": article["title"] if grounded else "a passage nobody wrote",
+        }
+        for article in articles
+    ]
+
+
+def synthesis_reply(
+    positive: Sequence[str] = (), negative: Sequence[str] = (), caveat: str = "model caveat"
+) -> Dict[str, Any]:
+    return {
+        "positive": {
+            "narrative": "The favourable reading.",
+            "if_scenario": "IF it holds, the trend continues.",
+            "citations": list(positive),
+        },
+        "negative": {
+            "narrative": "The unfavourable reading.",
+            "if_scenario": "IF it holds, the trend reverses.",
+            "citations": list(negative),
+        },
+        "caveat": caveat,
+    }
 
 
 def body(res) -> dict:
