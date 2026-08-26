@@ -8,6 +8,7 @@ analyst. No network, no key, and the same result every run.
 
 from __future__ import annotations
 
+import json
 import os
 import socket
 import subprocess
@@ -23,6 +24,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 BOOT_TIMEOUT = 20.0
 DROP_ENV = ("AUTH_TOKEN", "ANTHROPIC_API_KEY")
+ANALYSED_QUERY = "Auric Foundry"
 
 
 def free_port() -> int:
@@ -84,6 +86,33 @@ def server(tmp_path_factory: pytest.TempPathFactory) -> Iterator[str]:
             process.wait(timeout=10)
         except subprocess.TimeoutExpired:
             process.kill()
+
+
+def _post(url: str) -> dict:
+    request = urllib.request.Request(url, data=b"{}", method="POST")
+    request.add_header("Content-Type", "application/json")
+    with urllib.request.urlopen(request, timeout=30) as response:
+        return json.loads(response.read())["data"]
+
+
+@pytest.fixture(scope="session")
+def analysed(server: str) -> str:
+    """A brief that is already collected and analysed, built through the API.
+
+    The browser tests that read the timeline and the two readings all want the
+    same finished brief; building it once over HTTP keeps them from re-running
+    the whole flow through the UI.
+    """
+    payload = json.dumps({"query": ANALYSED_QUERY, "period_days": 90}).encode()
+    request = urllib.request.Request(
+        server + "/api/briefs", data=payload, method="POST",
+        headers={"Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(request, timeout=30) as response:
+        slug = json.loads(response.read())["data"]["slug"]
+    _post(f"{server}/api/briefs/{slug}/collect")
+    _post(f"{server}/api/briefs/{slug}/analyze")
+    return slug
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list) -> None:

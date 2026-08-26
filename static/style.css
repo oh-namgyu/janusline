@@ -53,6 +53,7 @@
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.5);
   --shadow-lift: 0 12px 28px -14px rgba(0, 0, 0, 0.8);
   --page-max: 1180px;
+  --axis: 74px;
 }
 
 * { box-sizing: border-box; }
@@ -374,6 +375,230 @@ body {
 .summary-row { align-items: baseline; display: flex; flex-wrap: wrap; gap: 10px 18px; margin-bottom: 14px; }
 .bv-meta { color: var(--text-dim); font-size: 13px; margin: 0; }
 
+/* -- dual timeline ------------------------------------------------------- */
+.timeline { position: relative; padding: 4px 0 8px; }
+
+/* the time axis itself: one hairline down the middle of the whole run */
+.timeline::before {
+  background: linear-gradient(180deg, transparent, var(--line) 6%, var(--line) 94%, transparent);
+  bottom: 0;
+  content: "";
+  left: 50%;
+  position: absolute;
+  top: 0;
+  width: 1px;
+}
+
+/* a day marker sits across the axis */
+.tl-tick {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+  margin: 20px 0 12px;
+  position: relative;
+}
+
+.tl-tick:first-child { margin-top: 0; }
+.tl-tick::before, .tl-tick::after { background: var(--line-soft); content: ""; flex: 1; height: 1px; }
+
+.tl-tick-date {
+  background: var(--ink-800);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  color: var(--text-dim);
+  font: 500 11.5px/1 var(--sans);
+  letter-spacing: 0.12em;
+  padding: 5px 13px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* one article, one row — the three columns are left / axis / right */
+.tl-entry {
+  align-items: start;
+  display: grid;
+  grid-template-columns: 1fr var(--axis) 1fr;
+  margin-bottom: 12px;
+  position: relative;
+}
+
+/* Every child of an entry is pinned to the entry's single row: without that,
+   sparse auto-placement pushes the axis dot below a right-hand card. */
+.tl-node, .tl-pos, .tl-neg, .tl-chip { grid-row: 1; }
+
+.tl-node {
+  align-self: start;
+  background: var(--ink-900);
+  border: 2px solid var(--neu);
+  border-radius: 50%;
+  grid-column: 2;
+  height: 11px;
+  justify-self: center;
+  margin-top: 17px;
+  width: 11px;
+}
+
+.tl-node-pos { border-color: var(--pos); }
+.tl-node-neg { border-color: var(--neg); }
+
+.tl-card {
+  background: var(--ink-750);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  padding: 13px 15px;
+  transition: border-color var(--ease), background var(--ease);
+}
+
+.tl-card:hover { border-color: var(--line); }
+
+.tl-pos {
+  border-left: 3px solid var(--pos);
+  grid-column: 1;
+  margin-right: 10px;
+}
+
+.tl-neg {
+  border-right: 3px solid var(--neg);
+  grid-column: 3;
+  margin-left: 10px;
+}
+
+/* citation jump target: held long enough to find, calm enough to read */
+.tl-card.is-cited { background: var(--ink-700); border-color: var(--pos-line); }
+.tl-neg.is-cited { border-color: var(--neg-line); }
+
+.tl-head { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
+
+.tl-tag {
+  border: 1px solid var(--neu-line);
+  border-radius: 3px;
+  color: var(--neu);
+  font: 600 9.5px/1 var(--sans);
+  letter-spacing: 0.16em;
+  padding: 4px 6px;
+  text-transform: uppercase;
+}
+
+.tl-tag-pos { border-color: var(--pos-line); color: var(--pos); }
+.tl-tag-neg { border-color: var(--neg-line); color: var(--neg); }
+
+.tl-title { font: 600 16px/1.35 var(--serif); margin: 0 0 6px; word-break: break-word; }
+.tl-title .link:hover { color: var(--pos-bright); }
+.tl-neg .tl-title .link:hover { color: var(--neg-bright); }
+
+.tl-meta {
+  color: var(--text-mute);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 12px;
+  gap: 4px 10px;
+}
+
+.tl-summary { color: var(--text-dim); font-size: 13.5px; margin: 8px 0 0; }
+
+/* the grounding line: a quote the article really contains, or a mark saying
+   there was none. Never a colour on its own — both carry a glyph and words. */
+.tl-quote {
+  border-left: 2px solid var(--neu-line);
+  color: var(--text-dim);
+  font: italic 13px/1.5 var(--serif);
+  margin: 10px 0 0;
+  padding: 2px 0 2px 10px;
+}
+
+.tl-pos .tl-quote { border-left-color: var(--pos-line); }
+.tl-neg .tl-quote { border-left-color: var(--neg-line); }
+.tl-quote-mark { color: var(--text-mute); font-style: normal; margin-right: 6px; }
+.tl-noquote { color: var(--text-mute); font-size: 12px; margin: 10px 0 0; }
+
+/* neutral rides the axis: a slim chip, centred, never a full card */
+.tl-chip {
+  align-items: baseline;
+  background: var(--ink-800);
+  border: 1px dashed var(--neu-line);
+  border-radius: var(--radius-pill);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  grid-column: 1 / -1;
+  justify-self: center;
+  max-width: 520px;
+  padding: 8px 16px;
+  width: 100%;
+}
+
+.tl-chip .tl-title { font-size: 14px; margin: 0; }
+.tl-chip.is-cited { background: var(--ink-700); border-style: solid; }
+
+/* -- synthesis ----------------------------------------------------------- */
+.synth-grid { display: grid; gap: 18px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+.synth {
+  background: var(--ink-750);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  padding: 17px 19px;
+}
+
+.synth-pos { border-top: 3px solid var(--pos); }
+.synth-neg { border-top: 3px solid var(--neg); }
+
+.synth-head { align-items: center; display: flex; flex-wrap: wrap; gap: 9px; margin-bottom: 12px; }
+.synth-title { font: 600 17px/1.2 var(--serif); margin: 0; }
+.synth-pos .synth-title { color: var(--pos-bright); }
+.synth-neg .synth-title { color: var(--neg-bright); }
+.synth-text { margin: 0 0 14px; white-space: pre-wrap; }
+
+.synth-if {
+  background: var(--ink-850);
+  border-left: 2px solid var(--neu-line);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  padding: 12px 14px;
+}
+
+.synth-pos .synth-if { border-left-color: var(--pos-line); }
+.synth-neg .synth-if { border-left-color: var(--neg-line); }
+
+.synth-if-label {
+  color: var(--text-mute);
+  display: block;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.synth-if-text { margin: 0; white-space: pre-wrap; }
+
+.synth-cites { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 14px; }
+
+.synth-cite {
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  color: var(--text-dim);
+  cursor: pointer;
+  font: 12px/1.2 var(--sans);
+  max-width: 100%;
+  overflow: hidden;
+  padding: 5px 11px;
+  text-align: left;
+  text-overflow: ellipsis;
+  transition: border-color var(--ease), color var(--ease);
+  white-space: nowrap;
+}
+
+.synth-pos .synth-cite:hover { border-color: var(--pos-line); color: var(--pos-bright); }
+.synth-neg .synth-cite:hover { border-color: var(--neg-line); color: var(--neg-bright); }
+
+.synth-empty { color: var(--text-mute); font-style: italic; margin: 0; }
+
+.caveat { color: var(--text-mute); font-size: 12.5px; margin: 18px 0 0; }
+.caveat-foot { border-top: 1px solid var(--line-soft); margin-top: 34px; padding-top: 16px; }
+
+.empty { color: var(--text-mute); font-style: italic; margin: 0; }
+.hidden { display: none; }
+
 /* -- ≤860px: one column, polarity said in words as well as colour -------- */
 @media (max-width: 860px) {
   .masthead-inner { padding: 24px 18px 12px; }
@@ -381,6 +606,23 @@ body {
   .panel { padding: 16px; }
   .form-row { gap: 14px; }
   .grid { grid-template-columns: 1fr; }
+
+  .timeline::before { display: none; }
+  .tl-entry { grid-template-columns: 1fr; margin-bottom: 10px; }
+  .tl-node { display: none; }
+
+  .tl-pos, .tl-neg, .tl-chip {
+    grid-column: 1;
+    justify-self: stretch;
+    margin: 0;
+    max-width: none;
+  }
+
+  .tl-neg { border-left: 3px solid var(--neg); border-right: 1px solid var(--line-soft); }
+  .tl-chip { border-left: 3px solid var(--neu); border-radius: var(--radius-sm); }
+  .tl-tag { font-size: 10.5px; padding: 5px 8px; }
+
+  .synth-grid { grid-template-columns: 1fr; }
   .actionbar { gap: 8px; }
   .bv-title { flex: 1 1 100%; }
 }

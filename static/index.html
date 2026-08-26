@@ -69,9 +69,12 @@
         <a class="btn btn-small" href="#/" id="bv-back">&larr; Briefs</a>
         <h2 class="bv-title" id="bv-query"></h2>
         <span class="pill pill-empty" id="bv-status">empty</span>
+        <span class="badge badge-warn hidden" id="bv-ambiguous">query may be ambiguous — try refining</span>
         <span class="spacer"></span>
         <button class="btn btn-small" type="button" id="bv-collect">Collect</button>
         <button class="btn btn-small btn-primary" type="button" id="bv-analyze">Analyze</button>
+        <button class="btn btn-small" type="button" id="bv-export"
+                title="Download a standalone HTML briefing">Export</button>
       </div>
 
       <section class="panel panel-summary">
@@ -83,6 +86,26 @@
         <div class="gauge" id="bv-gauge"></div>
       </section>
 
+      <section class="panel panel-timeline">
+        <div class="panel-head">
+          <h2 class="panel-title">Timeline</h2>
+          <span class="kicker">favourable left &middot; unfavourable right &middot; newest first</span>
+        </div>
+        <div class="timeline" id="timeline"></div>
+        <p class="empty hidden" id="timeline-empty">Nothing collected yet — run Collect.</p>
+      </section>
+
+      <section class="panel panel-synthesis" id="synthesis">
+        <div class="panel-head">
+          <h2 class="panel-title">Both readings</h2>
+          <span class="kicker">what each side of the coverage adds up to</span>
+        </div>
+        <div class="synth-grid">
+          <article class="synth synth-pos" id="synth-positive" aria-label="Favourable reading"></article>
+          <article class="synth synth-neg" id="synth-negative" aria-label="Unfavourable reading"></article>
+        </div>
+        <p class="caveat" id="synth-caveat"></p>
+      </section>
     </div>
 
     <p class="caveat caveat-foot">
@@ -92,6 +115,7 @@
   </main>
 
   <script src="/static/app.js"></script>
+  <script src="/static/timeline.js"></script>
   <script src="/static/brief.js"></script>
 </body>
 </html>

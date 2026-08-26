@@ -1,19 +1,30 @@
 "use strict";
 
-/* The brief view's summary bar and its two long-running actions. The dual
-   timeline and the two readings land here in the next stage; for now the view
-   states what a brief holds and drives collection and analysis.
-   Nothing here trusts the server's prose — every string lands through
-   textContent. */
+/* The brief view: summary bar, the dual timeline (timeline.js draws it) and the
+   two readings underneath. Nothing here trusts the server's prose — every
+   string lands through textContent. */
 
 (function (JL) {
+  const AMBIGUOUS_AT = 0.6;
+  const SIDES = [
+    { name: "positive", node: "synth-positive", title: "Favourable reading" },
+    { name: "negative", node: "synth-negative", title: "Unfavourable reading" },
+  ];
+  const IF_LABEL = "IF this narrative holds →";
+  const UNGROUNDED = "insufficient citations";
+  const NO_SYNTHESIS = "Run Analyze to read both sides of this coverage.";
+  const CITE_MAX = 64;
+
   const dom = {
     query: document.getElementById("bv-query"),
     status: document.getElementById("bv-status"),
     meta: document.getElementById("bv-meta"),
     gauge: document.getElementById("bv-gauge"),
+    ambiguous: document.getElementById("bv-ambiguous"),
     collect: document.getElementById("bv-collect"),
     analyze: document.getElementById("bv-analyze"),
+    exportBtn: document.getElementById("bv-export"),
+    caveat: document.getElementById("synth-caveat"),
   };
 
   let current = null;
@@ -35,17 +46,17 @@
     dom.gauge.appendChild(legend);
   }
 
-  function sentimentCounts(articles) {
-    const tally = {};
-    articles.forEach((article) => {
-      const name = article.sentiment;
-      if (name) tally[name] = (tally[name] || 0) + 1;
-    });
-    return tally;
+  /* A brief that comes back mostly neutral usually means the query, not the
+     coverage: the model could not tell which stories were about this subject. */
+  function ambiguity(brief, tally) {
+    const share = tally.total ? tally.neutral / tally.total : 0;
+    const flag = brief.status === "analyzed" && share >= AMBIGUOUS_AT;
+    dom.ambiguous.classList.toggle("hidden", !flag);
   }
 
   function summary(brief) {
     const articles = brief.articles || [];
+    const tally = JL.counts(sentimentCounts(articles));
     dom.query.textContent = brief.query || brief.slug;
     dom.status.className = JL.statusClass(brief.status);
     dom.status.textContent = String(brief.status || "empty");
@@ -55,7 +66,17 @@
       (brief.lang || []).join(" + ") || "no editions",
       "updated " + JL.shortDate(brief.updated),
     ].join(" · ");
-    gauge(JL.counts(sentimentCounts(articles)));
+    gauge(tally);
+    ambiguity(brief, tally);
+  }
+
+  function sentimentCounts(articles) {
+    const tally = {};
+    articles.forEach((article) => {
+      const name = article.sentiment;
+      if (name) tally[name] = (tally[name] || 0) + 1;
+    });
+    return tally;
   }
 
   function buttons(brief) {
@@ -63,6 +84,55 @@
     dom.collect.textContent = has ? "Re-collect" : "Collect";
     dom.analyze.textContent = brief.status === "analyzed" ? "Re-analyze" : "Analyze";
     dom.analyze.disabled = !has;
+    dom.exportBtn.disabled = !has;
+  }
+
+  // -- synthesis -----------------------------------------------------------
+  function citeLabel(articleId) {
+    const title = String(JL.articleTitle(articleId) || articleId);
+    return title.length > CITE_MAX ? title.slice(0, CITE_MAX) + "…" : title;
+  }
+
+  function citations(ids) {
+    const row = JL.el("div", "synth-cites");
+    (ids || []).forEach((articleId) => {
+      const cite = JL.button(citeLabel(articleId), "synth-cite", () =>
+        JL.jumpToArticle(articleId)
+      );
+      cite.title = "Jump to this article on the timeline";
+      row.appendChild(cite);
+    });
+    return row;
+  }
+
+  function sideHead(side, block) {
+    const head = JL.el("div", "synth-head");
+    head.appendChild(JL.el("h3", "synth-title", side.title));
+    if (block && block.ungrounded) {
+      head.appendChild(JL.el("span", "badge badge-warn", UNGROUNDED));
+    }
+    return head;
+  }
+
+  function renderSide(side, block) {
+    const panel = document.getElementById(side.node);
+    panel.replaceChildren(sideHead(side, block));
+    if (!block) {
+      panel.appendChild(JL.el("p", "synth-empty", NO_SYNTHESIS));
+      return;
+    }
+    panel.appendChild(JL.el("p", "synth-text", block.narrative || ""));
+    const scenario = JL.el("div", "synth-if");
+    scenario.appendChild(JL.el("span", "synth-if-label", IF_LABEL));
+    scenario.appendChild(JL.el("p", "synth-if-text", block.if_scenario || ""));
+    panel.appendChild(scenario);
+    panel.appendChild(citations(block.citations));
+  }
+
+  function synthesis(brief) {
+    const found = brief.synthesis || null;
+    SIDES.forEach((side) => renderSide(side, found ? found[side.name] : null));
+    dom.caveat.textContent = found ? found.caveat || "" : "";
   }
 
   // -- actions -------------------------------------------------------------
@@ -70,6 +140,8 @@
     current = brief;
     summary(brief);
     buttons(brief);
+    JL.renderTimeline(brief.articles);
+    synthesis(brief);
   }
 
   async function run(node, label, path, onError) {
@@ -104,8 +176,13 @@
     });
   }
 
+  function exportBrief() {
+    if (current) window.open("/api/briefs/" + current.slug + "/export", "_blank");
+  }
+
   dom.collect.addEventListener("click", collect);
   dom.analyze.addEventListener("click", analyze);
+  dom.exportBtn.addEventListener("click", exportBrief);
 
   JL.openBrief = async (slug) => {
     try {
