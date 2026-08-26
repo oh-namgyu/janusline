@@ -1,3 +1,5 @@
+import threading
+import time
 from pathlib import Path
 
 import pytest
@@ -120,6 +122,43 @@ def test_recollecting_sends_the_brief_back_to_collected(app_factory) -> None:
     again = body(client.post(f"/api/briefs/{slug}/collect"))["data"]
     assert again["status"] == "collected" and again["synthesis"] is None
     assert client.post(f"/api/briefs/{slug}/analyze").status_code == 200
+
+
+class SlowSynthesis(FakeText):
+    """Classifies at once, then holds the closing call open long enough to race."""
+
+    def __init__(self, started: threading.Event) -> None:
+        self.started = started
+
+    def generate(self, system: str, user: str) -> str:
+        if system != SYSTEM_CLASSIFY:
+            self.started.set()
+            time.sleep(0.3)
+        return super().generate(system, user)
+
+
+def test_a_collect_arriving_mid_analysis_does_not_interleave(app_factory) -> None:
+    started = threading.Event()
+    app = app_factory(SlowSynthesis(started))
+    client, slug, store = collected(app)
+    rival = app.test_client()
+    outcome = []
+
+    def recollect() -> None:
+        started.wait(2)
+        outcome.append(rival.post(f"/api/briefs/{slug}/collect").status_code)
+
+    thread = threading.Thread(target=recollect)
+    thread.start()
+    assert client.post(f"/api/briefs/{slug}/analyze").status_code == 200
+    thread.join(5)
+
+    # the collect waited for the analysis to land, then replaced it wholesale —
+    # never the other way round, which would have judged articles nobody kept
+    assert outcome == [200]
+    final = store.load_brief(slug)
+    assert final["status"] == "collected"
+    assert all(article["sentiment"] is None for article in final["articles"])
 
 
 # --- refusals --------------------------------------------------------------

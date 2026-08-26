@@ -72,6 +72,15 @@ class Storage:
     def _lock(self, slug: str):
         return _lock_for(f"{self.root}::{slug}")
 
+    def lock(self, slug: str):
+        """The brief's own lock, for callers whose operation spans several steps.
+
+        Reads do not take it, so holding it through a long analysis serialises
+        the writers for that brief without blocking anyone browsing it.
+        """
+        validate_slug(slug)
+        return self._lock(slug)
+
     # -- read ------------------------------------------------------------
     def exists(self, slug: str) -> bool:
         return self.brief_file(slug).is_file()

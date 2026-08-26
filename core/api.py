@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from functools import partial
 from typing import Any, Dict, Tuple
 
 from flask import Blueprint, Response, current_app, jsonify, request
@@ -103,22 +104,28 @@ def analyze(slug: str) -> Tuple[Response, int]:
     folded in by one atomic write — so any failure here, at any stage, leaves
     brief.json byte for byte as it was. Re-analysing an analysed brief keeps the
     articles and replaces only the judgements and the synthesis.
+
+    The whole run holds the brief's writer lock: a second analysis, or a collect
+    that would swap the articles underneath this one, waits its turn instead of
+    racing it. Readers never take that lock, so the brief stays browsable.
     """
-    brief = store().load_brief(slug)
-    if brief.get("status") not in ANALYSABLE:
-        return fail("brief has no collected articles", 409)
-    articles = brief.get("articles") or []
-    if not articles:
-        return fail("brief has no articles to analyse", 409)
-    try:
-        result = analyse(brief.get("query") or "", articles, llm())
-    except LLMNotConfigured:
-        return fail("llm-not-configured", 503)
-    except LLMError as err:
-        return fail(str(err) or "llm-error", 502, retryable=err.retryable)
-    except AnalysisParseError as err:
-        return fail("invalid-llm-output", 502, raw_preview=err.raw[:RAW_PREVIEW])
-    return ok(store().mutate_brief(slug, lambda brief: apply_analysis(brief, result)))
+    with store().lock(slug):
+        brief = store().load_brief(slug)
+        if brief.get("status") not in ANALYSABLE:
+            return fail("brief has no collected articles", 409)
+        articles = brief.get("articles") or []
+        if not articles:
+            return fail("brief has no articles to analyse", 409)
+        try:
+            result = analyse(brief.get("query") or "", articles, llm())
+        except LLMNotConfigured:
+            return fail("llm-not-configured", 503)
+        except LLMError as err:
+            return fail(str(err) or "llm-error", 502, retryable=err.retryable)
+        except AnalysisParseError as err:
+            return fail("invalid-llm-output", 502, raw_preview=err.raw[:RAW_PREVIEW])
+        apply = partial(apply_analysis, result=result)
+        return ok(store().mutate_brief(slug, apply))
 
 
 @api_bp.delete("/briefs/<slug>")
