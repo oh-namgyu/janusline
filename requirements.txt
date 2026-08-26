@@ -1,6 +1,6 @@
 # Runtime dependencies.
 flask>=3.0
-feedparser>=6.0
+feedparser>=6.0.14
 # Analysis only. Without ANTHROPIC_API_KEY the app collects and browses
 # without ever importing this package.
 anthropic>=0.40
