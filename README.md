@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/oh-namgyu/janusline/actions/workflows/ci.yml/badge.svg)](https://github.com/oh-namgyu/janusline/actions/workflows/ci.yml)
 
+> **한글 요약** — 검색어 하나로 뉴스 양면 브리핑을 만듭니다 — 세로 타임라인의 왼쪽엔 긍정, 오른쪽엔 부정 기사를 시간순으로 배치하고, 하단에 양측 서사 종합과 IF 시나리오(근거 기사 인용 포함)를 대비해 보여줍니다. Google News RSS 무키 수집, 셀프호스트. *(전체 한국어 문서: [README_KOR.md](README_KOR.md))*
+
 A self-hosted **dual-sided news briefing** tool. Type one search query — a
 company, a person, an issue — and janusline collects the news around it and lays
 it out on a single vertical timeline: **favourable coverage down the left,
