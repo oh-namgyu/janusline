@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 # HOST=0.0.0.0 makes the app reachable from outside the container's own
 # namespace. The bind guard in core/auth.py refuses a non-loopback bind without
