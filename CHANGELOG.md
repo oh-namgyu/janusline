@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-16
+
 ### Changed
 
 - The Docker image is built on `python:3.14-slim` (was `3.12-slim`).
